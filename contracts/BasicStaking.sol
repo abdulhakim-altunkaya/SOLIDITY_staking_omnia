@@ -2,6 +2,7 @@ pragma solidity ^0.8.0;
 
 contract Staking {
     mapping (address => uint256) public stakes;
+    mapping (address => bool) public hasStaked;
     address public owner;
     uint256 public totalStaked;
 
@@ -10,6 +11,13 @@ contract Staking {
 
     constructor() public {
         owner = msg.sender;
+    }
+
+    error NotStaker(address caller, string message);
+    modifier onlyStakers(address caller) {
+        if(hasStaked[caller] == false) {
+            revert NotStaker(caller, "you are not staker");
+        }
     }
 
     function stake(uint256 stakeAmount) public {
@@ -33,7 +41,7 @@ contract Staking {
         emit Unstaked(msg.sender, unstakeAmount);
     }
 
-    function claim() public {
+    function claim() public onlyStaker() {
         require(msg.sender != address(0), "Cannot claim from address 0");
         require(stakes[msg.sender] > 0, "Must have a stake to claim");
 
