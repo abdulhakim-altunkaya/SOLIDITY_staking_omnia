@@ -78,6 +78,9 @@ contract Staking {
 
     //ASSUMPTION: I assume the apy is stable. I know that apy changes each 28 days but once a user
     //has staked an amount, then the apy is stable for this stake until stake period ends.
+
+    //Users will need to wait for 28 days to withdraw the reward (condition in QA).
+    //For testing purposes, I made 28 seconds. Normally I need make it "28 days".
     function claimReward(uint _index) external onlyStakers {
         //security checks
         require(msg.sender != address(0), "Cannot claim from address 0");
@@ -85,17 +88,26 @@ contract Staking {
         uint stakedAmount = StakeDetailsMapping[msg.sender][_index].amount;
         require(stakedAmount > 0, "wrong stake index");
         uint stakeTime = StakeDetailsMapping[msg.sender][_index].stakeDate;
-        require(block.timestamp >= stakeTime + 28 days,"time has not passed");
-
+        require(block.timestamp >= stakeTime + 28 seconds,"wait 28 days to get your reward"); //TESTING-seconds
+        //require(block.timestamp >= stakeTime + 28 days,"wait 28 days to get your reward"); //DEPLOYMENT-days
+        uint interestRate = StakeDetailsMapping[msg.sender][_index].apy;
+        uint interestDays = StakeDetailsMapping[msg.sender][_index].stakingDays;
+        // Compound interest formula: principal += principal * rate/100;
+        uint principal = stakedAmount;
+        for ( uint i=0; i< interestDays; i++ ) {
+            principal += principal * interestRate/100 ;
+        }
+        reward = principal - stakedAmount;
     }
 
-    function calculateInterest(uint principal, uint timeInDays) public pure returns (uint) {
-        // 3% APY
-        uint interestRate = 3;
-        // Compound interest formula: A = P(1 + r/n)^nt
-        // assuming 365 days per year 
-        uint timeInYears = timeInDays / 365;
-        return principal * (1 + (interestRate/100)) ** (timeInYears);
+    uint public reward;
+
+    function compound (uint principal, uint rate, uint periods) public pure returns (uint) {
+        for ( uint i=0; i<periods; i++ ) {
+            uint yield = principal * rate/100 ;
+            principal += yield;
+        }
+        return principal;
     }
 
 
